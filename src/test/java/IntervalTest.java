@@ -1,8 +1,6 @@
-import org.hamcrest.Matcher;
 import org.junit.Test;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
@@ -13,18 +11,7 @@ import rx.schedulers.TestScheduler;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 
-public class RxTest {
-    @Test
-    public void test() throws Exception {
-
-        Observable<Long> observable = Observable.interval(100, TimeUnit.MILLISECONDS);
-        observable.take(1).subscribe(num -> System.out.println("once: " + num),
-                (e) -> System.out.println("once error: " + e),
-                () -> System.out.println("once complete"));
-        observable.subscribe(num -> System.out.println("all: " + num));
-
-        Thread.sleep(1000);
-    }
+public class IntervalTest {
 
     @Test
     public void testIntervalWithTestScheduler() throws Exception {
@@ -56,7 +43,7 @@ public class RxTest {
         TestSubscriber<Long> subscriber = TestSubscriber.create(3);
 
         Observable.interval(1, TimeUnit.SECONDS, scheduler).subscribe(subscriber);
-        scheduler.advanceTimeBy(10, TimeUnit.SECONDS);
+        scheduler.advanceTimeBy(3, TimeUnit.SECONDS);
 
         assertThat(subscriber.getOnNextEvents(), contains(0L,1L,2L));
     }
