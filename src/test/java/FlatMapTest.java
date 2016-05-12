@@ -1,13 +1,18 @@
+import org.hamcrest.Matchers;
+import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 import rx.Observable;
 import rx.functions.Func0;
 import rx.functions.Func1;
 import rx.observers.TestSubscriber;
+import rx.schedulers.TestScheduler;
 import rx.subjects.PublishSubject;
+import rx.subjects.Subject;
 
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -16,6 +21,7 @@ import static org.hamcrest.Matchers.contains;
 public class FlatMapTest {
 
     TestSubscriber ts = new TestSubscriber();
+    private TestScheduler scheduler = new TestScheduler();
 
     @Test
     public void testNoReason() throws Exception {
@@ -136,6 +142,26 @@ public class FlatMapTest {
 //        subject.onCompleted();
 //
 //        assertThat(testSubscriber.getOnNextEvents(), contains("next:a", "next:b", "error"));
+    }
+
+    @Test
+    public void testFlatMapWithThreadsInterleavesOutput() throws Exception {
+        TestSubscriber<String> tSub = new TestSubscriber<>();
+        Observable<String> o1 = Observable.interval(10, TimeUnit.MILLISECONDS, scheduler)
+                .map(num -> "one: " + num);
+        Observable<String> o2 = Observable.interval(10, TimeUnit.MILLISECONDS, scheduler)
+                .map(num -> "two: " + num);
+
+        Subject<Observable<String>, Observable<String>> subject = PublishSubject.create();
+        subject.flatMap(o -> o).subscribe(tSub);
+        subject.onNext(o1);
+        scheduler.advanceTimeBy(20, TimeUnit.MILLISECONDS);
+        subject.onNext(o2);
+
+        scheduler.advanceTimeBy(20, TimeUnit.MILLISECONDS);
+
+        Assert.assertThat(tSub.getOnNextEvents(), Matchers.contains("one: 0", "one: 1", "one: 2",
+                "two: 0", "one: 3", "two: 1"));
     }
 }
 
