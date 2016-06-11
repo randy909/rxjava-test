@@ -8,6 +8,9 @@ import rx.schedulers.TestScheduler;
 import rx.subjects.PublishSubject;
 import rx.subjects.Subject;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.contains;
+
 public class ConcatMapTest {
     TestSubscriber<String> ts = new TestSubscriber();
     private TestScheduler scheduler = new TestScheduler();
@@ -21,27 +24,43 @@ public class ConcatMapTest {
 
         flattenMe.concatMap(observable -> observable).subscribe(ts);
 
-        System.out.println(ts.getOnNextEvents().size());
-        System.out.println(ts.getOnNextEvents());
+        assertThat(ts.getOnNextEvents(), contains("hi", "there", "how", "are", "you"));
     }
 
     @Test
     public void testConcatMapWithThreads() throws Exception {
         Observable<String> o1 =
                 Observable.interval(10, TimeUnit.MILLISECONDS, scheduler)
-                        .zipWith(Observable.range(0, 5), (i, r) -> i)
+                        .zipWith(Observable.range(0, 3), (i, r) -> i)
                         .map(num -> "one: " + num);
         Observable<String> o2 = Observable.interval(10, TimeUnit.MILLISECONDS, scheduler)
                 .map(num -> "two: " + num);
 
-        Subject<Observable<String>, Observable<String>> subject = PublishSubject.create();
-        subject.concatMap(o -> o).subscribe(ts);
-        subject.onNext(o1);
-        scheduler.advanceTimeBy(20, TimeUnit.MILLISECONDS);
-        subject.onNext(o2);
+        Observable.just(o1, o2)
+                .concatMap(o -> o)
+                .subscribe(ts);
 
-        scheduler.advanceTimeBy(100, TimeUnit.MILLISECONDS);
+        scheduler.advanceTimeBy(60, TimeUnit.MILLISECONDS);
 
-        System.out.println(ts.getOnNextEvents());
+        assertThat(ts.getOnNextEvents(), contains(
+                "one: 0", "one: 1", "one: 2", "two: 0", "two: 1", "two: 2"));
+    }
+
+    @Test
+    public void testOutOfOrderNotifications() throws Exception {
+        PublishSubject<String> s1 = PublishSubject.create();
+        PublishSubject<String> s2 = PublishSubject.create();
+
+        Observable.just(s1, s2)
+                .concatMap(o -> o)
+                .subscribe(ts);
+
+        s1.onNext("one");
+        s2.onNext("ignored");
+        s1.onNext("two");
+        s1.onCompleted();
+        s2.onNext("three");
+
+        assertThat(ts.getOnNextEvents(), contains("one", "two", "three"));
     }
 }
