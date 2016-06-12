@@ -47,7 +47,7 @@ public class ConcatMapTest {
     }
 
     @Test
-    public void testOutOfOrderNotifications() throws Exception {
+    public void testSecondSubjectIgnoredUntilFirstCompletes() throws Exception {
         PublishSubject<String> s1 = PublishSubject.create();
         PublishSubject<String> s2 = PublishSubject.create();
 
